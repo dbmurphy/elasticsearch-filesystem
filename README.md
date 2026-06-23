@@ -54,11 +54,12 @@ esfs mount --mount /mnt/esfs --index conversations,orders
 
 ## Two surfaces
 
-1. **Real FUSE mount** — every `open`/`read`/`write`/`unlink` goes to
-   Elasticsearch. `cat`, `>`, `cp`, `vim`, `rm` all just work.
-2. **Routed commands** — `ls`/`find`/`grep` only. These reinterpret discovery and
-   search intent. `cat`/`cp`/`rm`/editors are *not* shimmed; the mount already
-   handles them correctly.
+| Surface | What it does | Commands |
+|---------|-------------|----------|
+| **FUSE mount** | Every file operation goes directly to Elasticsearch | `cat`, `>`, `cp`, `vim`, `rm`, editors |
+| **Routed commands** | Reinterprets discovery and search intent as ES queries | `ls`, `find`, `grep` (when `esfs env` is active) |
+
+`cat`/`cp`/`rm`/editors are **not** shimmed — the mount handles them natively.
 
 ## Install
 
@@ -185,25 +186,34 @@ Exit codes follow grep: `0` match, `1` no match, `2` error.
 - **No Elasticsearch-side setup**: no mappings, templates, pipelines, scripts,
   helper indices, saved searches, or stored digests. Profiles are local-only.
 
-## Architecture
+## How it works
 
-```
-cmd/esfs         control CLI (mount/unmount/env/path/doctor/grep)
-cmd/esfsd        mount daemon (service-manager friendly)
-cmd/esfs-{grep,ls,find}   routed command shims
-internal/contract   path model, encoding, error mapping (the contract)
-internal/escore     ES client, catalog, doc store, query planner, caches, PIT
-internal/vfs        logical filesystem (read/write/editor-save/streaming readdir)
-internal/fusefs     thin go-fuse adapter over the VFS
-internal/routing    ESFS scope detection for the shims
-internal/cmdshim    routed ls/find/grep + exact fallback + passthrough
-internal/profile    local-only profile.md generation
-internal/cli        the esfs subcommands
+```mermaid
+flowchart TD
+  userShell[Your shell / agent] --> esfsShell[ESFS shell integration<br/>eval &quot;$(esfs env)&quot;]
+  userShell --> posixTools[cat / cp / vim / rm<br/>normal file I/O]
+  esfsShell --> routedGrep[Routed ls / find / grep<br/>Elasticsearch search]
+  posixTools --> fuseMount[FUSE mount]
+  routedGrep --> esfsd
+  fuseMount --> esfsd[esfsd — sync daemon<br/>read · write · delete · cache]
+  esfsd --> queryCore[Shared query core<br/>ES client · PIT · field caps · planner]
+  queryCore --> profiles[profile.md<br/>local digests]
+  queryCore --> caches[Bounded caches<br/>docs · metadata · pages]
+  queryCore --> elastic[(Elasticsearch)]
 ```
 
-All filesystem semantics live in `internal/vfs` and are unit-tested without a
-kernel mount; `internal/fusefs` is a thin pass-through. The shared core is tested
-against a simulated Elasticsearch (`httptest`) and an in-memory fake.
+| Package | Role |
+|---------|------|
+| `cmd/esfs` | Control CLI — mount / env / path / doctor / grep |
+| `cmd/esfsd` | Mount daemon for service managers (systemd, launchd) |
+| `cmd/esfs-{grep,ls,find}` | Routed command shims |
+| `internal/contract` | Path model, encoding, error ↔ errno mapping |
+| `internal/escore` | ES client, catalog, doc store, query planner, PIT caches |
+| `internal/vfs` | All filesystem semantics — unit-tested without a kernel mount |
+| `internal/fusefs` | Thin `go-fuse` adapter over the VFS |
+| `internal/cmdshim` | Routed ls/find/grep, exact fallback, passthrough |
+| `internal/profile` | Local-only `profile.md` generation |
+| `internal/cli` | `esfs` subcommands |
 
 Docs:
 - [docs/INSTALL.md](docs/INSTALL.md) — install (FUSE backend, binaries, services, verify, uninstall).
