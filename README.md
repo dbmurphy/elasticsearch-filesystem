@@ -85,16 +85,27 @@ Full installation guide: [docs/INSTALL.md](docs/INSTALL.md)
 
 ```mermaid
 flowchart TD
-  userShell[Your shell / agent] --> esfsShell[ESFS shell integration<br/>eval &quot;$(esfs env)&quot;]
-  userShell --> posixTools[cat / cp / vim / rm<br/>normal file I/O]
-  esfsShell --> routedGrep[Routed ls / find / grep<br/>Elasticsearch search]
-  posixTools --> fuseMount[FUSE mount]
+  userShell[Your shell or agent]
+  esfsShell[ESFS shell integration]
+  posixTools[cat · cp · vim · rm]
+  routedGrep[Routed ls · find · grep]
+  fuseMount[FUSE mount]
+  esfsd[esfsd sync daemon]
+  queryCore[Shared query core]
+  profiles[profile.md digests]
+  caches[Bounded caches]
+  elastic[(Elasticsearch)]
+
+  userShell --> esfsShell
+  userShell --> posixTools
+  esfsShell --> routedGrep
+  posixTools --> fuseMount
   routedGrep --> esfsd
-  fuseMount --> esfsd[esfsd — sync daemon<br/>read · write · delete · cache]
-  esfsd --> queryCore[Shared query core<br/>ES client · PIT · field caps · planner]
-  queryCore --> profiles[profile.md<br/>local digests]
-  queryCore --> caches[Bounded caches<br/>docs · metadata · pages]
-  queryCore --> elastic[(Elasticsearch)]
+  fuseMount --> esfsd
+  esfsd --> queryCore
+  queryCore --> profiles
+  queryCore --> caches
+  queryCore --> elastic
 ```
 
 ESFS has two surfaces — they work independently, not as a single magic shim:
