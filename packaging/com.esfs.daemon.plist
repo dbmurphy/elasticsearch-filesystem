@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- launchd agent for ESFS on macOS. Install to
+     ~/Library/LaunchAgents/com.esfs.daemon.plist then:
+       launchctl load ~/Library/LaunchAgents/com.esfs.daemon.plist
+     Requires a FUSE backend (macFUSE or FUSE-T). With FSKit/FUSE-T the mount
+     may live under /Volumes/esfs; create a /esfs symlink if desired. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.esfs.daemon</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/esfsd</string>
+    <string>--mount</string>
+    <string>/Volumes/esfs</string>
+    <string>--index</string>
+    <string>conversations</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>ESFS_ENDPOINT</key>
+    <string>https://localhost:9200</string>
+    <key>ESFS_API_KEY_ENV</key>
+    <string>ES_API_KEY</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardErrorPath</key>
+  <string>/tmp/esfs.err.log</string>
+  <key>StandardOutPath</key>
+  <string>/tmp/esfs.out.log</string>
+</dict>
+</plist>

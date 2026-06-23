@@ -1,0 +1,43 @@
+{
+  "endpoint": "https://es.internal:9200",
+  "api_key_env": "ES_API_KEY",
+  "ca_cert_file": "/etc/esfs/ca.pem",
+  "insecure": false,
+
+  "visible_indices": ["conversations", "orders", "logs-app"],
+
+  "write_policy": "safe-create-update",
+  "delete_sync": false,
+  "grep_mode": "auto",
+  "time_field": "",
+  "timezone": "UTC",
+
+  "request_timeout": "10s",
+  "concurrency": 8,
+  "cache_ttl": "30s",
+
+  "redact_fields": ["password", "ssn", "api_key"],
+  "profile_opt_out": ["logs-app"],
+
+  "indices": {
+    "conversations": {
+      "time_field": "@timestamp",
+      "search_fields": ["subject", "body"],
+      "semantic_fields": ["body_semantic"],
+      "grep_mode": "auto",
+      "redact_fields": ["customer_email"],
+      "delete_sync": true
+    },
+    "orders": {
+      "time_field": "created_at",
+      "search_fields": ["item", "notes"],
+      "grep_mode": "lexical",
+      "write_policy": "create-only"
+    },
+    "logs-app": {
+      "time_field": "@timestamp",
+      "grep_mode": "lexical",
+      "profile": false
+    }
+  }
+}

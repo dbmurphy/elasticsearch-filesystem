@@ -1,0 +1,42 @@
+# Repeatable Linux + real-Elasticsearch acceptance environment for ESFS.
+#
+#   make acceptance        # or: ./test/docker/run.sh
+#
+# Brings up a single-node Elasticsearch and a Linux runner that builds ESFS,
+# seeds data, and executes the parity acceptance loop against the real cluster.
+# The runner's exit code is the acceptance result (0 = pass).
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - bootstrap.memory_lock=false
+      - logger.level=WARN
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+    ports:
+      - "19200:9200"
+
+  esfs:
+    build:
+      context: ../..
+      dockerfile: test/docker/Dockerfile
+    # The runner polls Elasticsearch readiness itself (it has curl/jq), which is
+    # more robust than relying on the ES image's bundled health tooling.
+    depends_on:
+      - elasticsearch
+    environment:
+      - ESFS_ENDPOINT=http://elasticsearch:9200
+      - ESFS_MOUNT=/esfs
+      - ESFS_INDEX=conversations
+    # FUSE mount inside the container needs these privileges. Tier A (routed
+    # shims) works without a kernel mount; Tier B (mount/cat/write) needs them.
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse
+    security_opt:
+      - apparmor:unconfined

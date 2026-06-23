@@ -1,0 +1,98 @@
+version: 2
+
+project_name: esfs
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: esfs
+    main: ./cmd/esfs
+    binary: esfs
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/dbmurphy/elasticsearch-filesystem/internal/cli.Version={{ .Version }}
+  - id: esfsd
+    main: ./cmd/esfsd
+    binary: esfsd
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/dbmurphy/elasticsearch-filesystem/internal/cli.Version={{ .Version }}
+  - id: esfs-grep
+    main: ./cmd/esfs-grep
+    binary: esfs-grep
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+  - id: esfs-ls
+    main: ./cmd/esfs-ls
+    binary: esfs-ls
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+  - id: esfs-find
+    main: ./cmd/esfs-find
+    binary: esfs-find
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+
+archives:
+  - id: default
+    ids: [esfs, esfsd, esfs-grep, esfs-ls, esfs-find]
+    name_template: "esfs_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - config.example.json
+      - docs/**/*
+      - examples/**/*
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  # CHANGELOG.md is owned by release-please; keep the GitHub release notes lean.
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+
+# Homebrew (macOS) via a cask in the dbmurphy/homebrew-tap tap. Linux users
+# install via `go install` or the release tarballs (Homebrew casks are macOS).
+homebrew_casks:
+  - name: esfs
+    ids: [default]
+    repository:
+      owner: dbmurphy
+      name: homebrew-tap
+      token: "{{ index .Env \"HOMEBREW_TAP_GITHUB_TOKEN\" }}"
+    # Skip publishing when no tap token is configured, so binary releases still
+    # succeed before the tap exists.
+    skip_upload: "{{ if index .Env \"HOMEBREW_TAP_GITHUB_TOKEN\" }}false{{ else }}true{{ end }}"
+    homepage: "https://github.com/dbmurphy/elasticsearch-filesystem"
+    description: "Elasticsearch as an SMFS-style filesystem (mount, routed ls/find/grep)"
+    commit_author:
+      name: David Murphy
+      email: david.b.murphy.tx@gmail.com
+    caveats: |
+      ESFS needs a FUSE backend at runtime:
+        macOS:  FUSE-T (kextless, preferred) or macFUSE
+        Linux:  fuse3 / fusermount3
+
+      Activate routed ls/find/grep:  eval "$(esfs env)"
+      Verify your setup:             esfs doctor
+
+release:
+  github:
+    owner: dbmurphy
+    name: elasticsearch-filesystem

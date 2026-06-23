@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          check-latest: true
+      - name: Verify formatting
+        run: |
+          unformatted="$(gofmt -l internal cmd)"
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt (run: make fmt):"
+            echo "$unformatted"
+            exit 1
+          fi
+      - name: Vet
+        run: go vet ./...
+      - name: Build
+        run: make build
+      - name: Test
+        run: go test -race ./...
+
+  integration:
+    name: integration (linux + real elasticsearch)
+    runs-on: ubuntu-latest
+    services:
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+        env:
+          discovery.type: single-node
+          xpack.security.enabled: 'false'
+          ES_JAVA_OPTS: -Xms512m -Xmx512m
+        ports:
+          - 9200:9200
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          check-latest: true
+      - name: Install FUSE
+        run: sudo apt-get update && sudo apt-get install -y fuse3 jq
+      - name: Build binaries
+        run: make build
+      - name: Run acceptance loop against real Elasticsearch
+        env:
+          ESFS_ENDPOINT: http://localhost:9200
+          ESFS_MOUNT: ${{ runner.temp }}/esfs
+          ESFS_INDEX: conversations
+        run: |
+          export PATH="$PWD/bin:$PATH"
+          ./test/docker/acceptance.sh

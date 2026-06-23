@@ -1,0 +1,23 @@
+# systemd user unit for ESFS. Install to ~/.config/systemd/user/esfs.service,
+# then: systemctl --user enable --now esfs
+#
+# Configure via ~/.config/esfs/config.json or the Environment lines below.
+[Unit]
+Description=ESFS - Elasticsearch as a filesystem
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Adjust the index list and mountpoint as needed.
+ExecStart=%h/.local/bin/esfsd --mount %h/esfs --index conversations
+ExecStop=/usr/bin/fusermount3 -u %h/esfs
+Restart=on-failure
+RestartSec=3
+# Provide the API key without baking it into the unit:
+#   systemctl --user set-environment ES_API_KEY=...
+Environment=ESFS_ENDPOINT=https://localhost:9200
+Environment=ESFS_API_KEY_ENV=ES_API_KEY
+
+[Install]
+WantedBy=default.target

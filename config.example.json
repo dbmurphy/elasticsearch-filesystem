@@ -1,0 +1,30 @@
+{
+  "endpoint": "https://localhost:9200",
+  "api_key_env": "ES_API_KEY",
+  "insecure": false,
+
+  "visible_indices": [],
+
+  "write_policy": "safe-create-update",
+  "delete_sync": false,
+
+  "grep_mode": "auto",
+  "time_field": "",
+  "timezone": "",
+
+  "request_timeout": "10s",
+  "concurrency": 8,
+  "cache_ttl": "30s",
+
+  "redact_fields": ["password", "ssn"],
+
+  "indices": {
+    "conversations": {
+      "time_field": "@timestamp",
+      "search_fields": ["subject", "body"],
+      "semantic_fields": ["body_semantic"],
+      "grep_mode": "auto",
+      "redact_fields": ["customer_email"]
+    }
+  }
+}
